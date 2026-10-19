@@ -88,9 +88,10 @@ export class FormsService {
 
     existing.fields = validatedFields;
     if (dto.tableColumns !== undefined) {
-      existing.tableColumns = validateFormTableColumnSchema(dto.tableColumns, {
-        requireEmailColumn: formKey === 'email.list.contact.import',
-      });
+      existing.tableColumns = validateFormTableColumnSchema(
+        dto.tableColumns,
+        this.tableColumnValidationOptions(formKey),
+      );
     } else if (
       registryEntry.supportsTableColumns &&
       existing.tableColumns.length === 0
@@ -139,7 +140,7 @@ export class FormsService {
     const validatedFields = validateFormFieldSchema(existing.fields);
     const validatedTableColumns = validateFormTableColumnSchema(
       existing.tableColumns ?? [],
-      { requireEmailColumn: formKey === 'email.list.contact.import' },
+      this.tableColumnValidationOptions(formKey),
     );
 
     existing.fields = validatedFields;
@@ -438,7 +439,7 @@ export class FormsService {
       fields: validateFormFieldSchema(registryEntry.defaultSchema.fields),
       tableColumns: validateFormTableColumnSchema(
         registryEntry.defaultSchema.tableColumns ?? [],
-        { requireEmailColumn: formKey === 'email.list.contact.import' },
+        this.tableColumnValidationOptions(formKey),
       ),
       steps: registryEntry.defaultSchema.steps ?? null,
       layout: registryEntry.defaultSchema.layout ?? null,
@@ -632,5 +633,12 @@ export class FormsService {
     if (!getFormRegistryEntry(formKey)) {
       throw new NotFoundException(`Unknown form key: ${formKey}`);
     }
+  }
+
+  private tableColumnValidationOptions(formKey: string) {
+    return {
+      requireEmailColumn: formKey === 'email.list.contact.import',
+      requirePhoneColumn: formKey === 'whatsapp.list.contact.import',
+    };
   }
 }

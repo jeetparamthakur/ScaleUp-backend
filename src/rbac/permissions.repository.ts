@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, QueryFailedError, Repository } from 'typeorm';
 import { PermissionEntity } from './entities/permission.entity';
 
 @Injectable()
@@ -34,5 +34,20 @@ export class PermissionsRepository {
 
   save(entity: PermissionEntity): Promise<PermissionEntity> {
     return this.repository.save(entity);
+  }
+
+  async saveIgnoringDuplicateKey(entity: PermissionEntity): Promise<void> {
+    try {
+      await this.repository.save(entity);
+    } catch (error: unknown) {
+      if (
+        error instanceof QueryFailedError &&
+        (error.driverError as { code?: string }).code === '23505'
+      ) {
+        return;
+      }
+
+      throw error;
+    }
   }
 }

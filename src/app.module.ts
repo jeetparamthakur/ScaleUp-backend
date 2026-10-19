@@ -34,6 +34,11 @@ import { TablePreferencesModule } from './table-preferences/table-preferences.mo
 import { OnPageSeoModule } from './on-page-seo/on-page-seo.module';
 import { WebsiteModule } from './website/website.module';
 import { UsersModule } from './users/users.module';
+import { WhatsappModule } from './inbox/whatsapp/whatsapp.module';
+import { WhatsappContactListsModule } from './whatsapp-contact-lists/whatsapp-contact-lists.module';
+import { WhatsappSenderConnectionsModule } from './whatsapp-sender-connections/whatsapp-sender-connections.module';
+import { WhatsappCampaignsModule } from './whatsapp-campaigns/whatsapp-campaigns.module';
+import { WhatsappTemplatesModule } from './whatsapp-templates/whatsapp-templates.module';
 
 const skipDb = process.env.SKIP_DB === 'true';
 
@@ -75,6 +80,11 @@ const skipDb = process.env.SKIP_DB === 'true';
           PlatformModule,
           FormsModule,
           TablePreferencesModule,
+          WhatsappModule,
+          WhatsappContactListsModule,
+          WhatsappSenderConnectionsModule,
+          WhatsappCampaignsModule,
+          WhatsappTemplatesModule,
         ]),
     HealthModule.register(!skipDb),
   ],

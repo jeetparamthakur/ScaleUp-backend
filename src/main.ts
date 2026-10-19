@@ -1,6 +1,7 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
@@ -9,6 +10,11 @@ import {
   parseTrackingBaseUrl,
   verifyTrackingOpenEndpoint,
 } from './email-campaigns/tracking-config.util';
+import {
+  isOpenWaWebhookBaseUrlPubliclyReachable,
+  OPENWA_WEBHOOK_LOCAL_DEV_HINT,
+} from './inbox/whatsapp/utils/openwa-webhook-config.util';
+import { PlatformOpenWaService } from './inbox/whatsapp/platform-openwa.service';
 
 function warnIfTrackingUrlMisconfigured(trackingBaseUrl: string): void {
   const logger = new Logger('TrackingConfig');
@@ -67,14 +73,40 @@ async function warnIfTrackingOpenEndpointUnreachable(
   );
 }
 
+function warnIfOpenWaWebhookBaseIsLocal(webhookBaseUrl: string): void {
+  const logger = new Logger('OpenWaWebhookConfig');
+  if (isOpenWaWebhookBaseUrlPubliclyReachable(webhookBaseUrl)) {
+    return;
+  }
+
+  logger.warn(
+    `OpenWA webhook callbacks use ${webhookBaseUrl} — the OpenWA server must be able to reach that host. ` +
+      OPENWA_WEBHOOK_LOCAL_DEV_HINT,
+  );
+}
+
+/** OpenWA may POST up to ~1 MiB JSON (inline media capped in OpenWA). Express default is 100kb → HTTP 413. */
+const OPENWA_WEBHOOK_JSON_BODY_LIMIT = '2mb';
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+    bodyParser: false,
+  });
+  app.useBodyParser('json', { limit: OPENWA_WEBHOOK_JSON_BODY_LIMIT });
+  app.useBodyParser('urlencoded', {
+    limit: OPENWA_WEBHOOK_JSON_BODY_LIMIT,
+    extended: true,
+  });
   const config = app.get(ConfigService);
   const trackingBaseUrl = config.get<string>(
     'trackingBaseUrl',
     'http://localhost:3008',
   );
   warnIfTrackingUrlMisconfigured(trackingBaseUrl);
+  warnIfOpenWaWebhookBaseIsLocal(
+    app.get(PlatformOpenWaService).resolveWebhookBaseUrl(),
+  );
 
   app.use(
     helmet({

@@ -12,11 +12,12 @@ const TABLE_COLUMN_TYPES = new Set([
 
 export function validateFormTableColumnSchema(
   columns: FormTableColumnDefinition[],
-  options?: { requireEmailColumn?: boolean },
+  options?: { requireEmailColumn?: boolean; requirePhoneColumn?: boolean },
 ): FormTableColumnDefinition[] {
   const keys = new Set<string>();
   const ids = new Set<string>();
   let emailColumnCount = 0;
+  let phoneColumnCount = 0;
 
   const normalized = columns.map((column, index) => {
     const label = column.label.trim();
@@ -53,6 +54,10 @@ export function validateFormTableColumnSchema(
       emailColumnCount += 1;
     }
 
+    if (column.type === 'phone') {
+      phoneColumnCount += 1;
+    }
+
     return {
       ...column,
       key,
@@ -71,6 +76,18 @@ export function validateFormTableColumnSchema(
   if (options?.requireEmailColumn && emailColumnCount > 1) {
     throw new BadRequestException(
       'Contact list import columns may only include one email column',
+    );
+  }
+
+  if (options?.requirePhoneColumn && phoneColumnCount === 0) {
+    throw new BadRequestException(
+      'WhatsApp list import columns must include a phone column',
+    );
+  }
+
+  if (options?.requirePhoneColumn && phoneColumnCount > 1) {
+    throw new BadRequestException(
+      'WhatsApp list import columns may only include one phone column',
     );
   }
 

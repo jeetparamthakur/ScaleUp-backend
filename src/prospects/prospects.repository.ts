@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, Repository, SelectQueryBuilder } from 'typeorm';
+import { Brackets, In, Repository, SelectQueryBuilder } from 'typeorm';
 import { ProspectEngagementEntity } from './entities/prospect-engagement.entity';
 import { ProspectFieldSchemaEntity } from './entities/prospect-field-schema.entity';
 import { ProspectEntity } from './entities/prospect.entity';
@@ -113,6 +113,19 @@ export class ProspectsRepository {
     organizationId: string,
   ): Promise<ProspectEntity | null> {
     return this.prospectRepository.findOne({ where: { id, organizationId } });
+  }
+
+  findByIdsForOrganization(
+    organizationId: string,
+    ids: string[],
+  ): Promise<ProspectEntity[]> {
+    if (ids.length === 0) {
+      return Promise.resolve([]);
+    }
+
+    return this.prospectRepository.find({
+      where: { organizationId, id: In(ids) },
+    });
   }
 
   createProspect(data: Partial<ProspectEntity>): ProspectEntity {

@@ -1,8 +1,11 @@
 export const ORG_MODULES = [
   'dashboard',
   'email',
+  'whatsapp',
+  'inbox',
   'crm',
   'website',
+  'smm',
   'settings',
 ] as const;
 

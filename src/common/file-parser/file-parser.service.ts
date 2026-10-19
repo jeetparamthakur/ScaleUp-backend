@@ -57,6 +57,16 @@ export interface ImportPreviewResult {
   rowCount: number;
 }
 
+/** How to interpret plain `.txt` files without a delimiter header row. */
+export type PlainTextImportValue = 'email' | 'phone';
+
+export interface ImportParseOptions {
+  plainTextValue?: PlainTextImportValue;
+}
+
+const MIN_IMPORT_PHONE_DIGITS = 8;
+const MAX_IMPORT_PHONE_DIGITS = 15;
+
 export interface CrmImportFieldRef {
   key: string;
   label: string;
@@ -130,8 +140,11 @@ export class FileParserService {
     );
   }
 
-  async preview(file: Express.Multer.File): Promise<ImportPreviewResult> {
-    const parsed = await this.parseFile(file);
+  async preview(
+    file: Express.Multer.File,
+    options?: ImportParseOptions,
+  ): Promise<ImportPreviewResult> {
+    const parsed = await this.parseFile(file, options);
 
     return {
       columns: parsed.columns,
@@ -141,7 +154,10 @@ export class FileParserService {
     };
   }
 
-  async parseFile(file: Express.Multer.File): Promise<ParsedContactFile> {
+  async parseFile(
+    file: Express.Multer.File,
+    options?: ImportParseOptions,
+  ): Promise<ParsedContactFile> {
     const extension = this.getExtension(file.originalname);
 
     switch (extension) {
@@ -150,7 +166,7 @@ export class FileParserService {
       case '.json':
         return this.parseJson(file.buffer);
       case '.txt':
-        return this.parseTxt(file.buffer);
+        return this.parseTxt(file.buffer, options?.plainTextValue ?? 'email');
       case '.pdf':
         return this.parsePdf(file.buffer);
       default:
@@ -347,7 +363,54 @@ export class FileParserService {
     );
   }
 
-  private parseTxt(buffer: Buffer): ParsedContactFile {
+  private normalizeImportPhone(raw: string): string | null {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    const hasPlus = trimmed.startsWith('+');
+    const digits = trimmed.replace(/\D/g, '');
+
+    if (
+      digits.length < MIN_IMPORT_PHONE_DIGITS ||
+      digits.length > MAX_IMPORT_PHONE_DIGITS
+    ) {
+      return null;
+    }
+
+    return hasPlus ? `+${digits}` : digits;
+  }
+
+  private extractPhoneFromTextLine(line: string): string | null {
+    const candidates = line.match(/\+?[\d][\d\s().-]{6,}[\d]/g) ?? [];
+    let best: string | null = null;
+    let bestDigitCount = 0;
+
+    for (const candidate of candidates) {
+      const normalized = this.normalizeImportPhone(candidate);
+      if (!normalized) {
+        continue;
+      }
+
+      const digitCount = normalized.replace(/\D/g, '').length;
+      if (digitCount > bestDigitCount) {
+        best = normalized;
+        bestDigitCount = digitCount;
+      }
+    }
+
+    if (best) {
+      return best;
+    }
+
+    return this.normalizeImportPhone(line);
+  }
+
+  private parseTxt(
+    buffer: Buffer,
+    plainTextValue: PlainTextImportValue,
+  ): ParsedContactFile {
     const content = buffer.toString('utf8');
     const lines = content
       .split(/\r?\n/)
@@ -388,29 +451,58 @@ export class FileParserService {
 
     const rows: Record<string, string>[] = [];
 
-    for (const line of lines) {
-      const emailMatch = line.match(EMAIL_REGEX)?.[0];
-      if (!emailMatch) {
-        continue;
+    if (plainTextValue === 'phone') {
+      for (const line of lines) {
+        const phone = this.extractPhoneFromTextLine(line);
+        if (!phone) {
+          continue;
+        }
+
+        const phoneMatch = line.match(/\+?[\d][\d\s().-]{6,}[\d]/);
+        const matchIndex = phoneMatch?.index ?? -1;
+        const beforePhone =
+          matchIndex > 0 ? line.slice(0, matchIndex).trim() : '';
+        const name = beforePhone
+          .replace(/[,;|:-]+$/g, '')
+          .replace(/[<>]+$/g, '')
+          .trim();
+
+        rows.push({
+          Phone: phone,
+          ...(name ? { Name: name } : {}),
+        });
       }
 
-      const email = emailMatch.trim();
-      const beforeEmail = line.slice(0, line.indexOf(email)).trim();
-      const name = beforeEmail
-        .replace(/[,;|:-]+$/g, '')
-        .replace(/[<>]+$/g, '')
-        .trim();
+      if (rows.length === 0) {
+        throw new BadRequestException(
+          'No valid phone numbers found in the text file',
+        );
+      }
+    } else {
+      for (const line of lines) {
+        const emailMatch = line.match(EMAIL_REGEX)?.[0];
+        if (!emailMatch) {
+          continue;
+        }
 
-      rows.push({
-        Email: email,
-        ...(name ? { Name: name } : {}),
-      });
-    }
+        const email = emailMatch.trim();
+        const beforeEmail = line.slice(0, line.indexOf(email)).trim();
+        const name = beforeEmail
+          .replace(/[,;|:-]+$/g, '')
+          .replace(/[<>]+$/g, '')
+          .trim();
 
-    if (rows.length === 0) {
-      throw new BadRequestException(
-        'No valid email addresses found in the text file',
-      );
+        rows.push({
+          Email: email,
+          ...(name ? { Name: name } : {}),
+        });
+      }
+
+      if (rows.length === 0) {
+        throw new BadRequestException(
+          'No valid email addresses found in the text file',
+        );
+      }
     }
 
     const columns = Array.from(

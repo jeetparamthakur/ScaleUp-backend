@@ -60,6 +60,21 @@ import { OrganizationGoogleConnectionEntity } from '../website/entities/organiza
 import { OrganizationGoogleOAuthAppEntity } from '../website/entities/organization-google-oauth-app.entity';
 import { OrganizationWebsiteSettingsEntity } from '../website/entities/organization-website-settings.entity';
 import { User } from '../users/entities/user.entity';
+import { PlatformOpenWaSettingsEntity } from '../inbox/whatsapp/entities/platform-openwa-settings.entity';
+import { UserWhatsappConnectionEntity } from '../inbox/whatsapp/entities/user-whatsapp-connection.entity';
+import { WhatsappConversationEntity } from '../inbox/whatsapp/entities/whatsapp-conversation.entity';
+import { WhatsappMessageEntity } from '../inbox/whatsapp/entities/whatsapp-message.entity';
+import { WhatsappContactListMemberEntity } from '../whatsapp-contact-lists/entities/whatsapp-contact-list-member.entity';
+import { WhatsappContactListEntity } from '../whatsapp-contact-lists/entities/whatsapp-contact-list.entity';
+import { WhatsappSenderConnectionEntity } from '../whatsapp-sender-connections/entities/whatsapp-sender-connection.entity';
+import { WhatsappCampaignEntity } from '../whatsapp-campaigns/entities/whatsapp-campaign.entity';
+import { WhatsappCampaignEventEntity } from '../whatsapp-campaigns/entities/whatsapp-campaign-event.entity';
+import { WhatsappCampaignMessageEntity } from '../whatsapp-campaigns/entities/whatsapp-campaign-message.entity';
+import { WhatsappCampaignRecipientEntity } from '../whatsapp-campaigns/entities/whatsapp-campaign-recipient.entity';
+import { WhatsappCampaignSenderEntity } from '../whatsapp-campaigns/entities/whatsapp-campaign-sender.entity';
+import { WhatsappCampaignSequenceStepEntity } from '../whatsapp-campaigns/entities/whatsapp-campaign-sequence-step.entity';
+import { WhatsappTemplateEntity } from '../whatsapp-templates/entities/whatsapp-template.entity';
+import { WhatsappTemplateStepEntity } from '../whatsapp-templates/entities/whatsapp-template-step.entity';
 
 @Module({
   imports: [
@@ -127,6 +142,21 @@ import { User } from '../users/entities/user.entity';
           FormSchemaEntity,
           UserTableColumnPreferenceEntity,
           TableColumnDefaultEntity,
+          PlatformOpenWaSettingsEntity,
+          UserWhatsappConnectionEntity,
+          WhatsappConversationEntity,
+          WhatsappMessageEntity,
+          WhatsappContactListEntity,
+          WhatsappContactListMemberEntity,
+          WhatsappSenderConnectionEntity,
+          WhatsappCampaignEntity,
+          WhatsappCampaignSenderEntity,
+          WhatsappCampaignRecipientEntity,
+          WhatsappCampaignMessageEntity,
+          WhatsappCampaignEventEntity,
+          WhatsappCampaignSequenceStepEntity,
+          WhatsappTemplateEntity,
+          WhatsappTemplateStepEntity,
         ],
         synchronize: process.env.NODE_ENV !== 'production',
         retryAttempts: 10,

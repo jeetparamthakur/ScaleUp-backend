@@ -70,6 +70,20 @@ describe('FileParserService', () => {
     expect(parsed.rows[1]?.Email).toBe('john@example.com');
   });
 
+  it('parses plain-text phone-per-line files for WhatsApp imports', async () => {
+    const file = makeFile(
+      'phones.txt',
+      'Jane Doe +91 9876543210\n+1 (415) 555-0100',
+    );
+
+    const parsed = await service.parseFile(file, { plainTextValue: 'phone' });
+
+    expect(parsed.rows).toHaveLength(2);
+    expect(parsed.rows[0]?.Phone).toBe('+919876543210');
+    expect(parsed.rows[0]?.Name).toBe('Jane Doe');
+    expect(parsed.rows[1]?.Phone).toBe('+14155550100');
+  });
+
   it('parses delimiter-separated text files with headers', async () => {
     const file = makeFile(
       'contacts.txt',

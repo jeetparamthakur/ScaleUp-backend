@@ -4,7 +4,7 @@ import type {
   LocationInputMode,
 } from '../../common/location/location-field.types';
 
-export type FormModule = 'crm' | 'email' | 'settings' | 'website';
+export type FormModule = 'crm' | 'email' | 'settings' | 'website' | 'whatsapp';
 
 export type FormType = 'single' | 'wizard' | 'inline';
 

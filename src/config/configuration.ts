@@ -23,6 +23,7 @@ export default () => ({
     secure: process.env.SMTP_SECURE === 'true',
   },
   backendUrl: process.env.BACKEND_URL ?? '',
+  openwaWebhookBaseUrl: process.env.OPENWA_WEBHOOK_BASE_URL ?? '',
   websiteOAuthCallbackBaseUrl:
     process.env.WEBSITE_OAUTH_CALLBACK_BASE_URL ?? '',
   emailAttachmentsDir: process.env.EMAIL_ATTACHMENTS_DIR ?? '',

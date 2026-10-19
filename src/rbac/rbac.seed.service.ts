@@ -223,6 +223,72 @@ const PERMISSIONS: PermissionSeed[] = [
     description: 'Add contacts and append imports to existing contact lists',
   },
   {
+    key: 'whatsapp-lists:read',
+    resource: 'whatsapp-lists',
+    action: 'read',
+    description: 'View WhatsApp contact lists',
+  },
+  {
+    key: 'whatsapp-lists:create',
+    resource: 'whatsapp-lists',
+    action: 'create',
+    description: 'Create and import WhatsApp contact lists',
+  },
+  {
+    key: 'whatsapp-lists:update',
+    resource: 'whatsapp-lists',
+    action: 'update',
+    description: 'Add contacts and append imports to WhatsApp contact lists',
+  },
+  {
+    key: 'whatsapp:read',
+    resource: 'whatsapp',
+    action: 'read',
+    description: 'View WhatsApp module sender connections',
+  },
+  {
+    key: 'whatsapp:manage',
+    resource: 'whatsapp',
+    action: 'manage',
+    description: 'Connect and manage personal WhatsApp sender numbers',
+  },
+  {
+    key: 'whatsapp-campaigns:read',
+    resource: 'whatsapp-campaigns',
+    action: 'read',
+    description: 'View WhatsApp campaigns',
+  },
+  {
+    key: 'whatsapp-campaigns:create',
+    resource: 'whatsapp-campaigns',
+    action: 'create',
+    description: 'Create WhatsApp campaigns',
+  },
+  {
+    key: 'whatsapp-campaigns:update',
+    resource: 'whatsapp-campaigns',
+    action: 'update',
+    description: 'Schedule and update WhatsApp campaigns',
+  },
+  {
+    key: 'whatsapp-campaigns:delete',
+    resource: 'whatsapp-campaigns',
+    action: 'delete',
+    description: 'Delete WhatsApp campaigns',
+  },
+  {
+    key: 'whatsapp-templates:read',
+    resource: 'whatsapp-templates',
+    action: 'read',
+    description: 'View WhatsApp message templates',
+  },
+  {
+    key: 'whatsapp-templates:manage',
+    resource: 'whatsapp-templates',
+    action: 'manage',
+    description: 'Create and manage WhatsApp message templates',
+  },
+  {
     key: 'manual-lists:read',
     resource: 'manual-lists',
     action: 'read',
@@ -464,6 +530,18 @@ const PERMISSIONS: PermissionSeed[] = [
     action: 'manage',
     description: 'Manage organization module limits (platform owner only)',
   },
+  {
+    key: 'inbox:read',
+    resource: 'inbox',
+    action: 'read',
+    description: 'View social inbox conversations',
+  },
+  {
+    key: 'inbox:manage',
+    resource: 'inbox',
+    action: 'manage',
+    description: 'Connect and manage personal WhatsApp inbox',
+  },
 ];
 
 const ROLES: RoleSeed[] = [
@@ -516,6 +594,17 @@ const ROLES: RoleSeed[] = [
       'contact-lists:read',
       'contact-lists:create',
       'contact-lists:update',
+      'whatsapp-lists:read',
+      'whatsapp-lists:create',
+      'whatsapp-lists:update',
+      'whatsapp:read',
+      'whatsapp:manage',
+      'whatsapp-campaigns:read',
+      'whatsapp-campaigns:create',
+      'whatsapp-campaigns:update',
+      'whatsapp-campaigns:delete',
+      'whatsapp-templates:read',
+      'whatsapp-templates:manage',
       'manual-lists:read',
       'manual-lists:create',
       'manual-lists:update',
@@ -546,6 +635,8 @@ const ROLES: RoleSeed[] = [
       'analytics:read',
       'analytics:manage',
       'website:read',
+      'inbox:read',
+      'inbox:manage',
     ],
   },
   {
@@ -558,6 +649,10 @@ const ROLES: RoleSeed[] = [
       'mailboxes:read',
       'email-campaigns:read',
       'contact-lists:read',
+      'whatsapp-lists:read',
+      'whatsapp:read',
+      'whatsapp-campaigns:read',
+      'whatsapp-templates:read',
       'manual-lists:read',
       'prospects:read',
       'companies:read',
@@ -569,6 +664,7 @@ const ROLES: RoleSeed[] = [
       'email-templates:read',
       'analytics:read',
       'website:read',
+      'inbox:read',
     ],
   },
 ];
@@ -605,7 +701,7 @@ export class RbacSeedService implements OnModuleInit {
         description: seed.description,
       });
 
-      await this.permissionsRepository.save(permission);
+      await this.permissionsRepository.saveIgnoringDuplicateKey(permission);
     }
   }
 
@@ -705,6 +801,17 @@ export class RbacSeedService implements OnModuleInit {
       'contact-lists:read',
       'contact-lists:create',
       'contact-lists:update',
+      'whatsapp-lists:read',
+      'whatsapp-lists:create',
+      'whatsapp-lists:update',
+      'whatsapp:read',
+      'whatsapp:manage',
+      'whatsapp-campaigns:read',
+      'whatsapp-campaigns:create',
+      'whatsapp-campaigns:update',
+      'whatsapp-campaigns:delete',
+      'whatsapp-templates:read',
+      'whatsapp-templates:manage',
       'manual-lists:read',
       'manual-lists:create',
       'manual-lists:update',
@@ -734,6 +841,8 @@ export class RbacSeedService implements OnModuleInit {
       'analytics:read',
       'analytics:manage',
       'website:read',
+      'inbox:read',
+      'inbox:manage',
     ]);
   }
 
@@ -744,6 +853,10 @@ export class RbacSeedService implements OnModuleInit {
       'mailboxes:read',
       'email-campaigns:read',
       'contact-lists:read',
+      'whatsapp-lists:read',
+      'whatsapp:read',
+      'whatsapp-campaigns:read',
+      'whatsapp-templates:read',
       'manual-lists:read',
       'prospects:read',
       'companies:read',
@@ -755,6 +868,7 @@ export class RbacSeedService implements OnModuleInit {
       'email-templates:read',
       'analytics:read',
       'website:read',
+      'inbox:read',
     ]);
   }
 

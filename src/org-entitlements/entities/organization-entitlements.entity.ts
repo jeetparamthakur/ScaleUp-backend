@@ -21,7 +21,7 @@ export class OrganizationEntitlementsEntity {
     type: 'text',
     array: true,
     default: () =>
-      "ARRAY['dashboard','email','crm','website','settings']::text[]",
+      "ARRAY['dashboard','email','inbox','crm','website','settings']::text[]",
   })
   enabledModules!: OrgModule[];
 
