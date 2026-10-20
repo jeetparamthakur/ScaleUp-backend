@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   disableEnvSslVerification,
+  HOSTED_PG_SSL,
   parsePostgresConnection,
 } from './postgres-ssl.util';
 import {
@@ -101,7 +102,7 @@ import { WhatsappTemplateStepEntity } from '../whatsapp-templates/entities/whats
 
         const useSsl =
           hosted || (!url.includes('localhost') && !url.includes('127.0.0.1'));
-        const ssl = useSsl ? { rejectUnauthorized: false } : false;
+        const ssl = useSsl ? { ...HOSTED_PG_SSL } : false;
         const connection = parsePostgresConnection(url);
 
         if (useSsl) {

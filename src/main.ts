@@ -15,6 +15,7 @@ import {
   OPENWA_WEBHOOK_LOCAL_DEV_HINT,
 } from './inbox/whatsapp/utils/openwa-webhook-config.util';
 import { PlatformOpenWaService } from './inbox/whatsapp/platform-openwa.service';
+import { disableEnvSslVerification } from './database/postgres-ssl.util';
 
 function warnIfTrackingUrlMisconfigured(trackingBaseUrl: string): void {
   const logger = new Logger('TrackingConfig');
@@ -89,6 +90,10 @@ function warnIfOpenWaWebhookBaseIsLocal(webhookBaseUrl: string): void {
 const OPENWA_WEBHOOK_JSON_BODY_LIMIT = '2mb';
 
 async function bootstrap() {
+  if (process.env.RENDER === 'true' || process.env.NODE_ENV === 'production') {
+    disableEnvSslVerification();
+  }
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true,
     bodyParser: false,
