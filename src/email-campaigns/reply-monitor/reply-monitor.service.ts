@@ -179,7 +179,7 @@ export class ReplyMonitorService implements OnModuleInit {
 
     if (knownRecipientEmails.size > 0) {
       this.logger.log(
-        `Polling ${mailbox.email} for replies from ${knownRecipientEmails.size} known recipient(s): ${[...knownRecipientEmails].join(', ')}`,
+        `Polling ${mailbox.email} for replies from ${knownRecipientEmails.size} known recipient(s)`,
       );
     }
 

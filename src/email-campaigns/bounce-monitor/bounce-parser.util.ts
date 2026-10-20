@@ -1,3 +1,5 @@
+import { capEmailSourceText } from '../../common/email/email-source.util';
+
 const BOUNCE_SENDER_PATTERNS = [
   /mailer-daemon/i,
   /postmaster/i,
@@ -65,7 +67,7 @@ export function parseBounceEmail(input: {
     messageIds: [...messageIds],
     failedRecipientEmails: [...failedRecipientEmails].slice(0, 5),
     snippet: body.slice(0, 500),
-    text: body,
+    text: capEmailSourceText(body),
   };
 }
 

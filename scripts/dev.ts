@@ -1,6 +1,19 @@
 import { spawn } from 'child_process';
 import { ensureLocalDatabase } from './local-db';
 
+function withHeapLimit(
+  nodeOptions: string | undefined,
+  sizeMb: number,
+): string {
+  if (nodeOptions?.includes('--max-old-space-size=')) {
+    return nodeOptions;
+  }
+
+  return [nodeOptions, `--max-old-space-size=${sizeMb}`]
+    .filter(Boolean)
+    .join(' ');
+}
+
 async function runDev() {
   let shuttingDown = false;
 
@@ -18,6 +31,7 @@ async function runDev() {
     env: {
       ...process.env,
       PORT: process.env.PORT ?? '3008',
+      NODE_OPTIONS: withHeapLimit(process.env.NODE_OPTIONS, 4096),
     },
   });
 

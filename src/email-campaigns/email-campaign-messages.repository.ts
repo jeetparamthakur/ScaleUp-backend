@@ -258,9 +258,14 @@ export class EmailCampaignMessagesRepository {
     return this.repository.count();
   }
 
-  findAllOrderedByCreatedAt(): Promise<EmailCampaignMessageEntity[]> {
+  findPageOrderedByCreatedAt(
+    skip: number,
+    take: number,
+  ): Promise<EmailCampaignMessageEntity[]> {
     return this.repository.find({
       order: { createdAt: 'ASC' },
+      skip,
+      take,
     });
   }
 

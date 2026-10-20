@@ -1,3 +1,4 @@
+import { capEmailSourceText } from '../../common/email/email-source.util';
 import {
   isBounceSender,
   normalizeMessageId,
@@ -31,7 +32,7 @@ export function parseReplyEmail(input: {
     inReplyToMessageIds: extractMessageIds(inReplyTo),
     referenceMessageIds: extractMessageIds(references),
     receivedAt: input.receivedAt ?? null,
-    text: input.text,
+    text: capEmailSourceText(input.text),
   };
 }
 

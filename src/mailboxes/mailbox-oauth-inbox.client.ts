@@ -1,5 +1,10 @@
 import { Logger } from '@nestjs/common';
 import {
+  buildGmailRecipientSearchQueries,
+  capEmailSourceText,
+  decodeBase64UrlCapped,
+} from '../common/email/email-source.util';
+import {
   isBounceSender,
   parseBounceEmail,
 } from '../email-campaigns/bounce-monitor/bounce-parser.util';
@@ -25,13 +30,6 @@ export interface FetchedOAuthReplyEmail extends ParsedReplyEmail {
   id: string;
 }
 
-function decodeBase64Url(value: string): string {
-  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
-  const padding =
-    normalized.length % 4 === 0 ? '' : '='.repeat(4 - (normalized.length % 4));
-  return Buffer.from(normalized + padding, 'base64').toString('utf8');
-}
-
 function extractHeadersFromRawEmail(raw: string): {
   from: string;
   subject: string;
@@ -39,31 +37,6 @@ function extractHeadersFromRawEmail(raw: string): {
   const fromHeader = raw.match(/^From:\s*(.+)$/im)?.[1]?.trim() ?? '';
   const subject = raw.match(/^Subject:\s*(.+)$/im)?.[1]?.trim() ?? '';
   return { from: fromHeader, subject };
-}
-
-function buildGmailRecipientSearchQueries(
-  since: Date,
-  knownRecipientEmails?: ReadonlySet<string>,
-): string[] {
-  const afterSeconds = Math.floor(since.getTime() / 1000);
-  const recipients = [...(knownRecipientEmails ?? [])];
-
-  if (recipients.length === 0) {
-    return [`after:${afterSeconds}`];
-  }
-
-  const queries: string[] = [];
-  const batchSize = 10;
-
-  for (let index = 0; index < recipients.length; index += batchSize) {
-    const batch = recipients.slice(index, index + batchSize);
-
-    for (const email of batch) {
-      queries.push(`from:"${email}" after:${afterSeconds}`);
-    }
-  }
-
-  return queries;
 }
 
 async function fetchGmailReplyMessagesForQuery(
@@ -123,7 +96,7 @@ async function fetchGmailReplyMessagesForQuery(
         continue;
       }
 
-      const text = decodeBase64Url(messagePayload.raw);
+      const text = decodeBase64UrlCapped(messagePayload.raw);
       const messageId =
         text
           .match(/^Message-ID:\s*(.+)$/im)?.[1]
@@ -214,7 +187,7 @@ export async function fetchOAuthGmailBounceEmails(
       continue;
     }
 
-    const text = decodeBase64Url(messagePayload.raw);
+    const text = decodeBase64UrlCapped(messagePayload.raw);
     const { from, subject } = extractHeadersFromRawEmail(text);
 
     if (!isBounceSender(from, subject)) {
@@ -272,7 +245,7 @@ export async function fetchOAuthOutlookBounceEmails(
   for (const message of payload.value ?? []) {
     const from = message.from?.emailAddress?.address ?? '';
     const subject = message.subject ?? '';
-    const text = message.body?.content ?? '';
+    const text = capEmailSourceText(message.body?.content ?? '');
 
     if (!isBounceSender(from, subject)) {
       continue;
@@ -303,7 +276,7 @@ export async function fetchOAuthGmailReplyEmails(
   const results: FetchedOAuthReplyEmail[] = [];
   const seenMessageIds = new Set<string>();
   const listedCount = { value: 0 };
-  const maxListedMessages = 500;
+  const maxListedMessages = 80;
 
   for (const query of queries) {
     try {
@@ -391,7 +364,7 @@ export async function fetchOAuthOutlookReplyEmails(
         message.from?.emailAddress?.address ?? '',
       );
       const subject = message.subject ?? '';
-      const text = message.body?.content ?? '';
+      const text = capEmailSourceText(message.body?.content ?? '');
       const receivedAt = message.receivedDateTime
         ? new Date(message.receivedDateTime)
         : null;
