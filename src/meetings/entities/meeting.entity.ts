@@ -27,10 +27,10 @@ export class MeetingEntity {
   @Column({ name: 'prospect_id' })
   prospectId!: string;
 
-  @Column({ length: 16 })
+  @Column({ type: 'varchar', length: 16 })
   platform!: MeetingPlatform;
 
-  @Column({ length: 16, default: 'scheduled' })
+  @Column({ type: 'varchar', length: 16, default: 'scheduled' })
   status!: MeetingStatus;
 
   @Column({ type: 'varchar', length: 255, nullable: true })

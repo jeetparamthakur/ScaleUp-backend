@@ -20,7 +20,7 @@ export class UserCalendarConnectionEntity {
   @Column({ name: 'user_id' })
   userId!: string;
 
-  @Column({ length: 16 })
+  @Column({ type: 'varchar', length: 16 })
   provider!: CalendarConnectionProvider;
 
   @Column()

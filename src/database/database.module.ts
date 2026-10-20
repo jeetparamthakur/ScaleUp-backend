@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
+import { ensureRequiredSchema } from './ensure-required-schema';
 import {
   disableEnvSslVerification,
   HOSTED_PG_SSL,
@@ -86,6 +88,16 @@ import { WhatsappTemplateStepEntity } from '../whatsapp-templates/entities/whats
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
+      dataSourceFactory: async (options) => {
+        if (!options) {
+          throw new Error('TypeORM options were not provided');
+        }
+
+        const dataSource = new DataSource(options);
+        await dataSource.initialize();
+        await ensureRequiredSchema(dataSource);
+        return dataSource;
+      },
       useFactory: (config: ConfigService) => {
         const url = config.get<string>('databaseUrl') ?? '';
         const hosted =
