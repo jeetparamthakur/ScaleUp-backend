@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { withHostedPostgresSsl } from './postgres-ssl.util';
 import {
   AnalyticsDashboardEntity,
   AnalyticsWidgetEntity,
@@ -97,11 +98,12 @@ import { WhatsappTemplateStepEntity } from '../whatsapp-templates/entities/whats
 
         const useSsl =
           hosted || (!url.includes('localhost') && !url.includes('127.0.0.1'));
+        const ssl = useSsl ? { rejectUnauthorized: false } : false;
 
         return {
           type: 'postgres' as const,
-          url,
-          ssl: useSsl ? { rejectUnauthorized: false } : false,
+          url: useSsl ? withHostedPostgresSsl(url) : url,
+          ssl,
           entities: [
             User,
             Organization,
@@ -186,6 +188,7 @@ import { WhatsappTemplateStepEntity } from '../whatsapp-templates/entities/whats
             max: 2,
             idleTimeoutMillis: 30_000,
             connectionTimeoutMillis: 10_000,
+            ...(useSsl ? { ssl } : {}),
           },
           retryAttempts: hosted ? 5 : 10,
           retryDelay: 3000,
