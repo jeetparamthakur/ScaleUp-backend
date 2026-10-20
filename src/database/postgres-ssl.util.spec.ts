@@ -1,4 +1,7 @@
-import { parsePostgresConnection } from './postgres-ssl.util';
+import {
+  disableEnvSslVerification,
+  parsePostgresConnection,
+} from './postgres-ssl.util';
 
 describe('parsePostgresConnection', () => {
   it('parses a Render-style URL without using sslmode query params', () => {
@@ -22,5 +25,31 @@ describe('parsePostgresConnection', () => {
 
     expect(result.port).toBe(5432);
     expect(result.database).toBe('markos');
+  });
+});
+
+describe('disableEnvSslVerification', () => {
+  const original = { ...process.env };
+
+  afterEach(() => {
+    if (original.PGSSLMODE === undefined) {
+      delete process.env.PGSSLMODE;
+    } else {
+      process.env.PGSSLMODE = original.PGSSLMODE;
+    }
+
+    if (original.NODE_TLS_REJECT_UNAUTHORIZED === undefined) {
+      delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    } else {
+      process.env.NODE_TLS_REJECT_UNAUTHORIZED =
+        original.NODE_TLS_REJECT_UNAUTHORIZED;
+    }
+  });
+
+  it('forces pg and Node to accept Render self-signed TLS', () => {
+    disableEnvSslVerification();
+
+    expect(process.env.PGSSLMODE).toBe('no-verify');
+    expect(process.env.NODE_TLS_REJECT_UNAUTHORIZED).toBe('0');
   });
 });

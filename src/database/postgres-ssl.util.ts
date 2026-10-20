@@ -30,8 +30,11 @@ export function parsePostgresConnection(
   };
 }
 
+export const HOSTED_PG_SSL = { rejectUnauthorized: false } as const;
+
 export function disableEnvSslVerification(): void {
-  delete process.env.PGSSLMODE;
+  process.env.PGSSLMODE = 'no-verify';
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
   delete process.env.PGSSLROOTCERT;
   delete process.env.PGSSLCERT;
   delete process.env.PGSSLKEY;
