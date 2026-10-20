@@ -1,14 +1,38 @@
-const HOSTED_SSL_PARAMS = {
-  sslmode: 'no-verify',
-  uselibpqcompat: 'true',
-} as const;
+export interface PostgresConnectionTarget {
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  database: string;
+}
 
-export function withHostedPostgresSsl(databaseUrl: string): string {
-  const [base, query = ''] = databaseUrl.split('?');
-  const params = new URLSearchParams(query);
+export function parsePostgresConnection(
+  databaseUrl: string,
+): PostgresConnectionTarget {
+  const normalized = databaseUrl
+    .replace(/^postgresql:/i, 'http:')
+    .replace(/^postgres:/i, 'http:');
+  const parsed = new URL(normalized);
+  const database = decodeURIComponent(parsed.pathname.replace(/^\//, '')).split(
+    '/',
+  )[0];
 
-  params.set('sslmode', HOSTED_SSL_PARAMS.sslmode);
-  params.set('uselibpqcompat', HOSTED_SSL_PARAMS.uselibpqcompat);
+  if (!parsed.hostname || !database) {
+    throw new Error('DATABASE_URL is invalid.');
+  }
 
-  return `${base}?${params.toString()}`;
+  return {
+    host: parsed.hostname,
+    port: parsed.port ? Number(parsed.port) : 5432,
+    username: decodeURIComponent(parsed.username),
+    password: decodeURIComponent(parsed.password),
+    database,
+  };
+}
+
+export function disableEnvSslVerification(): void {
+  delete process.env.PGSSLMODE;
+  delete process.env.PGSSLROOTCERT;
+  delete process.env.PGSSLCERT;
+  delete process.env.PGSSLKEY;
 }

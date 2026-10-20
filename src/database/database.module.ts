@@ -1,7 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { withHostedPostgresSsl } from './postgres-ssl.util';
+import {
+  disableEnvSslVerification,
+  parsePostgresConnection,
+} from './postgres-ssl.util';
 import {
   AnalyticsDashboardEntity,
   AnalyticsWidgetEntity,
@@ -99,10 +102,19 @@ import { WhatsappTemplateStepEntity } from '../whatsapp-templates/entities/whats
         const useSsl =
           hosted || (!url.includes('localhost') && !url.includes('127.0.0.1'));
         const ssl = useSsl ? { rejectUnauthorized: false } : false;
+        const connection = parsePostgresConnection(url);
+
+        if (useSsl) {
+          disableEnvSslVerification();
+        }
 
         return {
           type: 'postgres' as const,
-          url: useSsl ? withHostedPostgresSsl(url) : url,
+          host: connection.host,
+          port: connection.port,
+          username: connection.username,
+          password: connection.password,
+          database: connection.database,
           ssl,
           entities: [
             User,
