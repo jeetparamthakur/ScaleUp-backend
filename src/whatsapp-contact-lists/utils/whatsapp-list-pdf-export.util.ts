@@ -1,4 +1,3 @@
-import PDFDocument from 'pdfkit';
 import type { WhatsappContactListMemberEntity } from '../entities/whatsapp-contact-list-member.entity';
 import type { WhatsappContactListEntity } from '../entities/whatsapp-contact-list.entity';
 import type { WhatsappListFieldSchema } from '../types/whatsapp-list-field-schema';
@@ -45,6 +44,8 @@ export async function renderWhatsappListPdf(
       label: field.label,
     })),
   ];
+
+  const { default: PDFDocument } = await import('pdfkit');
 
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 48, size: 'A4' });

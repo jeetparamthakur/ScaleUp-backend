@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import { ImapFlow } from 'imapflow';
+import type { ImapFlow } from 'imapflow';
 import type { MailboxEntity } from '../../mailboxes/entities/mailbox.entity';
 import type { MailboxCredentials } from '../../mailboxes/providers/mailbox-provider.types';
 import { IMAP_SOURCE_FETCH } from '../../common/email/email-source.util';
@@ -11,14 +11,17 @@ export interface FetchedBounceEmail extends ParsedBounceEmail {
   uid: number;
 }
 
-type ImapFlowOptions = ConstructorParameters<typeof ImapFlow>[0];
+type ImapFlowOptions = ConstructorParameters<
+  typeof import('imapflow').ImapFlow
+>[0];
 
-export function createImapFlowClient(
+export async function createImapFlowClient(
   options: ImapFlowOptions,
   logger: Logger,
   context: string,
   mailboxEmail: string,
-): ImapFlow {
+): Promise<ImapFlow> {
+  const { ImapFlow } = await import('imapflow');
   const client = new ImapFlow(options);
 
   client.on('error', (error) => {
@@ -44,7 +47,7 @@ export async function fetchRecentBounceEmails(
     return [];
   }
 
-  const client = createImapFlowClient(
+  const client = await createImapFlowClient(
     {
       host: preset.host,
       port: preset.port,

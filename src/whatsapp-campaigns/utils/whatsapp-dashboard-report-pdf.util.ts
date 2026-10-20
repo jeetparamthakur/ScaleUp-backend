@@ -1,4 +1,3 @@
-import PDFDocument from 'pdfkit';
 import type { WhatsappDashboardResponse } from '../whatsapp-dashboard.service';
 
 function sanitizeFilenameSegment(value: string): string {
@@ -28,6 +27,8 @@ export async function renderWhatsappDashboardReportPdf(
   data: WhatsappDashboardResponse,
   campaignScopeLabel: string,
 ): Promise<Buffer> {
+  const { default: PDFDocument } = await import('pdfkit');
+
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 48, size: 'A4' });
     const chunks: Buffer[] = [];

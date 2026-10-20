@@ -50,12 +50,14 @@ export class ReplyMonitorService implements OnModuleInit {
   ) {}
 
   onModuleInit(): void {
-    void this.backfillInferredOpens().catch((error: unknown) => {
-      this.logger.warn(
-        `Inferred open backfill skipped: ${
-          error instanceof Error ? error.message : 'unknown error'
-        }`,
-      );
+    setImmediate(() => {
+      void this.backfillInferredOpens().catch((error: unknown) => {
+        this.logger.warn(
+          `Inferred open backfill skipped: ${
+            error instanceof Error ? error.message : 'unknown error'
+          }`,
+        );
+      });
     });
   }
 
