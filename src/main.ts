@@ -129,6 +129,10 @@ async function bootstrap() {
 
   const port = config.get<number>('port') ?? 3008;
   await app.listen(port, '0.0.0.0');
+  const rssMiB = Math.round(process.memoryUsage().rss / (1024 * 1024));
+  new Logger('Bootstrap').log(
+    `Listening on 0.0.0.0:${port} (rss=${rssMiB}MiB)`,
+  );
   await warnIfTrackingOpenEndpointUnreachable(trackingBaseUrl);
 }
 void bootstrap();

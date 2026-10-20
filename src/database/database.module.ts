@@ -158,7 +158,17 @@ import { WhatsappTemplateStepEntity } from '../whatsapp-templates/entities/whats
           WhatsappTemplateEntity,
           WhatsappTemplateStepEntity,
         ],
-        synchronize: process.env.NODE_ENV !== 'production',
+        synchronize:
+          process.env.TYPEORM_SYNCHRONIZE === 'true' ||
+          (process.env.NODE_ENV !== 'production' &&
+            process.env.RENDER !== 'true' &&
+            process.env.TYPEORM_SYNCHRONIZE !== 'false'),
+        logging: false,
+        extra: {
+          max: 2,
+          idleTimeoutMillis: 30_000,
+          connectionTimeoutMillis: 10_000,
+        },
         retryAttempts: 10,
         retryDelay: 3000,
       }),

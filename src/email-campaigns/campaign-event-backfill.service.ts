@@ -16,12 +16,14 @@ export class CampaignEventBackfillService implements OnModuleInit {
   ) {}
 
   onModuleInit(): void {
-    void this.backfillIfNeeded().catch((error: unknown) => {
-      this.logger.warn(
-        `Campaign event backfill skipped: ${
-          error instanceof Error ? error.message : 'unknown error'
-        }`,
-      );
+    setImmediate(() => {
+      void this.backfillIfNeeded().catch((error: unknown) => {
+        this.logger.warn(
+          `Campaign event backfill skipped: ${
+            error instanceof Error ? error.message : 'unknown error'
+          }`,
+        );
+      });
     });
   }
 

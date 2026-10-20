@@ -12,12 +12,14 @@ export class CampaignMessageMetadataBackfillService implements OnModuleInit {
   ) {}
 
   onModuleInit(): void {
-    void this.backfillIfNeeded().catch((error: unknown) => {
-      this.logger.warn(
-        `Campaign message metadata backfill skipped: ${
-          error instanceof Error ? error.message : 'unknown error'
-        }`,
-      );
+    setImmediate(() => {
+      void this.backfillIfNeeded().catch((error: unknown) => {
+        this.logger.warn(
+          `Campaign message metadata backfill skipped: ${
+            error instanceof Error ? error.message : 'unknown error'
+          }`,
+        );
+      });
     });
   }
 

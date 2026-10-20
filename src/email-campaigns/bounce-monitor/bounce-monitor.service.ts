@@ -52,7 +52,9 @@ export class BounceMonitorService implements OnModuleInit {
   ) {}
 
   onModuleInit(): void {
-    void this.healFalseBounces();
+    setImmediate(() => {
+      void this.healFalseBounces();
+    });
   }
 
   @Cron(process.env.BOUNCE_POLL_INTERVAL_CRON ?? DEFAULT_BOUNCE_POLL_CRON)

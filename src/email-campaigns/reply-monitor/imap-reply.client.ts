@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { IMAP_SOURCE_FETCH } from '../../common/email/email-source.util';
-import { ImapFlow } from 'imapflow';
+import type { ImapFlow } from 'imapflow';
 import type { MailboxEntity } from '../../mailboxes/entities/mailbox.entity';
 import {
   getReplyMonitorMailboxes,
@@ -125,7 +125,7 @@ export async function fetchRecentReplyEmails(
     return [];
   }
 
-  const client = createImapFlowClient(
+  const client = await createImapFlowClient(
     {
       host: preset.host,
       port: preset.port,

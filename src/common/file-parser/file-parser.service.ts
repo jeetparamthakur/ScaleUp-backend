@@ -1,7 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { parse } from 'csv-parse/sync';
-import * as XLSX from '@e965/xlsx';
-import pdfParseModule from 'pdf-parse';
 
 export const FILE_PARSER_MAX_FILE_BYTES = 10 * 1024 * 1024;
 
@@ -28,11 +26,9 @@ interface PdfParseResult {
   text?: string;
 }
 
-const { PDFParse } = pdfParseModule as {
-  PDFParse: new (options: { data: Buffer }) => {
-    getText(): Promise<PdfParseResult>;
-    destroy?(): Promise<void>;
-  };
+type PdfParseCtor = new (options: { data: Buffer }) => {
+  getText(): Promise<PdfParseResult>;
+  destroy?(): Promise<void>;
 };
 
 const JSON_ARRAY_KEYS = ['contacts', 'data', 'rows', 'items', 'records'];
@@ -170,7 +166,7 @@ export class FileParserService {
       case '.pdf':
         return this.parsePdf(file.buffer);
       default:
-        return this.parseExcel(file.buffer);
+        return await this.parseExcel(file.buffer);
     }
   }
 
@@ -300,8 +296,9 @@ export class FileParserService {
     return this.buildParsedFileFromRecords(records);
   }
 
-  private parseExcel(buffer: Buffer): ParsedContactFile {
-    let workbook: XLSX.WorkBook;
+  private async parseExcel(buffer: Buffer): Promise<ParsedContactFile> {
+    const XLSX = await import('@e965/xlsx');
+    let workbook: ReturnType<typeof XLSX.read>;
 
     try {
       workbook = XLSX.read(buffer, { type: 'buffer' });
@@ -518,6 +515,17 @@ export class FileParserService {
   }
 
   private async extractPdfText(buffer: Buffer): Promise<string> {
+    const pdfParseModule = await import('pdf-parse');
+    const moduleExport = pdfParseModule as unknown as {
+      default?: { PDFParse?: PdfParseCtor };
+      PDFParse?: PdfParseCtor;
+    };
+    const PDFParse = moduleExport.PDFParse ?? moduleExport.default?.PDFParse;
+
+    if (!PDFParse) {
+      throw new BadRequestException('Unable to parse PDF file');
+    }
+
     const parser = new PDFParse({ data: buffer });
 
     try {
