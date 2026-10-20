@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { IMAP_SOURCE_FETCH } from '../../common/email/email-source.util';
 import { ImapFlow } from 'imapflow';
 import type { MailboxEntity } from '../../mailboxes/entities/mailbox.entity';
 import {
@@ -23,7 +24,8 @@ export interface FetchedReplyEmail extends ParsedReplyEmail {
 export { canMonitorMailbox };
 
 const MESSAGE_ID_HEADER_PATTERN = /^Message-ID:\s*(.+)$/im;
-const MAX_MESSAGES_PER_FOLDER = 200;
+const MAX_MESSAGES_PER_FOLDER = 80;
+const MAX_PER_SENDER_SEARCHES = 20;
 
 function extractMessageIdFromSource(text: string): string | null {
   const match = text.match(MESSAGE_ID_HEADER_PATTERN);
@@ -49,7 +51,9 @@ async function fetchReplyEmailsFromFolder(
   try {
     const uidSet = new Set<number>();
     const searchCriteriaList: Array<Record<string, unknown>> =
-      knownRecipientEmails && knownRecipientEmails.size > 0
+      knownRecipientEmails &&
+      knownRecipientEmails.size > 0 &&
+      knownRecipientEmails.size <= MAX_PER_SENDER_SEARCHES
         ? [...knownRecipientEmails].map((email) => ({ since, from: email }))
         : [{ since }];
 
@@ -67,7 +71,7 @@ async function fetchReplyEmailsFromFolder(
     for (const uid of uids.slice(-MAX_MESSAGES_PER_FOLDER)) {
       const message = await client.fetchOne(
         uid,
-        { envelope: true, source: true },
+        { envelope: true, source: IMAP_SOURCE_FETCH },
         { uid: true },
       );
 

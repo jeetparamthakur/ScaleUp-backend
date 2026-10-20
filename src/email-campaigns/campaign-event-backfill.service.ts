@@ -3,6 +3,7 @@ import { EmailCampaignEventsRepository } from './email-campaign-events.repositor
 import { EmailCampaignMessagesRepository } from './email-campaign-messages.repository';
 import { EmailCampaignRecipientsRepository } from './email-campaign-recipients.repository';
 import type { EmailCampaignMessageEntity } from './entities/email-campaign-message.entity';
+import type { EmailCampaignRecipientEntity } from './entities/email-campaign-recipient.entity';
 
 @Injectable()
 export class CampaignEventBackfillService implements OnModuleInit {
@@ -41,56 +42,90 @@ export class CampaignEventBackfillService implements OnModuleInit {
       'Backfilling campaign events from existing aggregate data…',
     );
 
-    const messages = await this.messagesRepository.findAllOrderedByCreatedAt();
+    const pageSize = 200;
+    let messageSkip = 0;
+    let backfilledMessages = 0;
 
-    for (const message of messages) {
-      await this.backfillMessage(message);
-    }
+    for (;;) {
+      const messages = await this.messagesRepository.findPageOrderedByCreatedAt(
+        messageSkip,
+        pageSize,
+      );
 
-    const recipients = await this.recipientsRepository.findAll();
-
-    for (const recipient of recipients) {
-      if (recipient.repliedAt) {
-        const hasReply =
-          await this.eventsRepository.existsByRecipientIdAndEventType(
-            recipient.id,
-            'reply',
-          );
-
-        if (!hasReply) {
-          await this.eventsRepository.insert({
-            campaignId: recipient.campaignId,
-            recipientId: recipient.id,
-            messageId: null,
-            eventType: 'reply',
-            occurredAt: recipient.repliedAt,
-            metadata: { source: 'imap' },
-          });
-        }
+      if (messages.length === 0) {
+        break;
       }
 
-      if (recipient.contactDisposition === 'unsubscribed') {
-        const hasUnsub =
-          await this.eventsRepository.existsByRecipientIdAndEventType(
-            recipient.id,
-            'unsubscribe',
-          );
+      for (const message of messages) {
+        await this.backfillMessage(message);
+      }
 
-        if (!hasUnsub) {
-          await this.eventsRepository.insert({
-            campaignId: recipient.campaignId,
-            recipientId: recipient.id,
-            messageId: null,
-            eventType: 'unsubscribe',
-            occurredAt:
-              recipient.repliedAt ?? recipient.lastSentAt ?? new Date(),
-            metadata: {},
-          });
-        }
+      backfilledMessages += messages.length;
+      messageSkip += messages.length;
+    }
+
+    let recipientSkip = 0;
+
+    for (;;) {
+      const recipients = await this.recipientsRepository.findPage(
+        recipientSkip,
+        pageSize,
+      );
+
+      if (recipients.length === 0) {
+        break;
+      }
+
+      for (const recipient of recipients) {
+        await this.backfillRecipientEvents(recipient);
+      }
+
+      recipientSkip += recipients.length;
+    }
+
+    this.logger.log(`Backfilled events for ${backfilledMessages} messages`);
+  }
+
+  private async backfillRecipientEvents(
+    recipient: EmailCampaignRecipientEntity,
+  ): Promise<void> {
+    if (recipient.repliedAt) {
+      const hasReply =
+        await this.eventsRepository.existsByRecipientIdAndEventType(
+          recipient.id,
+          'reply',
+        );
+
+      if (!hasReply) {
+        await this.eventsRepository.insert({
+          campaignId: recipient.campaignId,
+          recipientId: recipient.id,
+          messageId: null,
+          eventType: 'reply',
+          occurredAt: recipient.repliedAt,
+          metadata: { source: 'imap' },
+        });
       }
     }
 
-    this.logger.log(`Backfilled events for ${messages.length} messages`);
+    if (recipient.contactDisposition === 'unsubscribed') {
+      const hasUnsub =
+        await this.eventsRepository.existsByRecipientIdAndEventType(
+          recipient.id,
+          'unsubscribe',
+        );
+
+      if (!hasUnsub) {
+        await this.eventsRepository.insert({
+          campaignId: recipient.campaignId,
+          recipientId: recipient.id,
+          messageId: null,
+          eventType: 'unsubscribe',
+          occurredAt: recipient.repliedAt ?? recipient.lastSentAt ?? new Date(),
+          metadata: {},
+        });
+      }
+    }
   }
 
   private async backfillMessage(

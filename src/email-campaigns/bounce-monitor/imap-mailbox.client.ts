@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common';
 import { ImapFlow } from 'imapflow';
 import type { MailboxEntity } from '../../mailboxes/entities/mailbox.entity';
 import type { MailboxCredentials } from '../../mailboxes/providers/mailbox-provider.types';
+import { IMAP_SOURCE_FETCH } from '../../common/email/email-source.util';
 import { resolveImapPreset } from './imap-presets';
 import { isBounceSender, parseBounceEmail } from './bounce-parser.util';
 import type { ParsedBounceEmail } from './bounce-parser.util';
@@ -80,10 +81,10 @@ export async function fetchRecentBounceEmails(
         ),
       ];
 
-      for (const uid of uidList.slice(-200)) {
+      for (const uid of uidList.slice(-80)) {
         const message = await client.fetchOne(
           uid,
-          { envelope: true, source: true },
+          { envelope: true, source: IMAP_SOURCE_FETCH },
           { uid: true },
         );
 

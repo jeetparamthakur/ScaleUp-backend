@@ -327,8 +327,15 @@ export class EmailCampaignRecipientsRepository {
       .getRawMany();
   }
 
-  findAll(): Promise<EmailCampaignRecipientEntity[]> {
-    return this.repository.find();
+  findPage(
+    skip: number,
+    take: number,
+  ): Promise<EmailCampaignRecipientEntity[]> {
+    return this.repository.find({
+      order: { createdAt: 'ASC' },
+      skip,
+      take,
+    });
   }
 
   async findRepliesByOrganizationId(input: {
