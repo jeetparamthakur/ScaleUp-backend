@@ -28,6 +28,10 @@ export default () => ({
       process.env.SMTP_FROM ?? process.env.EMAIL_FROM ?? 'noreply@markos.dev',
     secure: process.env.SMTP_SECURE === 'true',
   },
+  resend: {
+    apiKey: process.env.RESEND_API_KEY ?? '',
+    from: process.env.RESEND_FROM ?? 'onboarding@resend.dev',
+  },
   backendUrl: process.env.BACKEND_URL ?? '',
   openwaWebhookBaseUrl: process.env.OPENWA_WEBHOOK_BASE_URL ?? '',
   websiteOAuthCallbackBaseUrl:
