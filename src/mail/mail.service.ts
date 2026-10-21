@@ -2,6 +2,7 @@ import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
+import { Resend } from 'resend';
 
 export interface InviteEmailPayload {
   to: string;
@@ -11,18 +12,22 @@ export interface InviteEmailPayload {
   invitedByEmail: string;
 }
 
+interface OutboundEmail {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+}
+
 @Injectable()
 export class MailService {
   private transporter: Transporter | null = null;
+  private resend: Resend | null = null;
 
   constructor(private readonly config: ConfigService) {}
 
   async sendOtpEmail(to: string, code: string): Promise<void> {
-    const transporter = this.getTransporter();
-    const from = this.config.get<string>('smtp.from') ?? 'noreply@markos.dev';
-
-    await transporter.sendMail({
-      from,
+    await this.sendEmail({
       to,
       subject: 'Your Markos verification code',
       text: [
@@ -44,11 +49,7 @@ export class MailService {
   }
 
   async sendInviteEmail(payload: InviteEmailPayload): Promise<void> {
-    const transporter = this.getTransporter();
-    const from = this.config.get<string>('smtp.from') ?? 'noreply@markos.dev';
-
-    await transporter.sendMail({
-      from,
+    await this.sendEmail({
       to: payload.to,
       subject: 'You have been invited to join a Markos workspace',
       text: [
@@ -67,6 +68,80 @@ export class MailService {
         </div>
       `,
     });
+  }
+
+  private async sendEmail(message: OutboundEmail): Promise<void> {
+    const resend = this.getResend();
+    if (resend) {
+      await this.sendViaResend(resend, message);
+      return;
+    }
+
+    await this.sendViaSmtp(message);
+  }
+
+  private getResend(): Resend | null {
+    const apiKey = this.config.get<string>('resend.apiKey')?.trim();
+    if (!apiKey) {
+      return null;
+    }
+
+    if (!this.resend) {
+      this.resend = new Resend(apiKey);
+    }
+
+    return this.resend;
+  }
+
+  private async sendViaResend(
+    resend: Resend,
+    message: OutboundEmail,
+  ): Promise<void> {
+    const from =
+      this.config.get<string>('resend.from')?.trim() || 'onboarding@resend.dev';
+
+    try {
+      const { error } = await resend.emails.send({
+        from,
+        to: message.to,
+        subject: message.subject,
+        text: message.text,
+        html: message.html,
+      });
+
+      if (error) {
+        throw new InternalServerErrorException(
+          error.message || 'Failed to send email. Contact platform support.',
+        );
+      }
+    } catch (error) {
+      if (error instanceof InternalServerErrorException) {
+        throw error;
+      }
+
+      throw new InternalServerErrorException(
+        'Failed to send email. Contact platform support.',
+      );
+    }
+  }
+
+  private async sendViaSmtp(message: OutboundEmail): Promise<void> {
+    const transporter = this.getTransporter();
+    const from = this.config.get<string>('smtp.from') ?? 'noreply@markos.dev';
+
+    try {
+      await transporter.sendMail({
+        from,
+        to: message.to,
+        subject: message.subject,
+        text: message.text,
+        html: message.html,
+      });
+    } catch {
+      throw new InternalServerErrorException(
+        'Email service is unreachable. Contact platform support.',
+      );
+    }
   }
 
   private getTransporter(): Transporter {
@@ -92,6 +167,9 @@ export class MailService {
       port,
       secure,
       auth: { user, pass },
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 15_000,
     });
 
     return this.transporter;
