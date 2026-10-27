@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { Resend } from 'resend';
+import type { SystemSmtpConfig } from './system-mail-config.util';
 
 export interface InviteEmailPayload {
   to: string;
@@ -21,7 +22,7 @@ interface OutboundEmail {
 
 @Injectable()
 export class MailService {
-  private transporter: Transporter | null = null;
+  private readonly transporters = new Map<string, Transporter>();
   private resend: Resend | null = null;
 
   constructor(private readonly config: ConfigService) {}
@@ -71,6 +72,11 @@ export class MailService {
   }
 
   private async sendEmail(message: OutboundEmail): Promise<void> {
+    if (this.shouldSendViaSmtpFirst()) {
+      await this.sendViaSmtp(message);
+      return;
+    }
+
     const resend = this.getResend();
     if (resend) {
       await this.sendViaResend(resend, message);
@@ -78,6 +84,21 @@ export class MailService {
     }
 
     await this.sendViaSmtp(message);
+  }
+
+  private shouldSendViaSmtpFirst(): boolean {
+    const useSmtp = this.config.get<boolean>('systemMail.useSmtp') ?? false;
+    if (!useSmtp) {
+      return false;
+    }
+
+    const preferSmtp =
+      this.config.get<boolean>('systemMail.preferSmtpOverResend') ?? false;
+    if (preferSmtp) {
+      return true;
+    }
+
+    return !this.getResend();
   }
 
   private getResend(): Resend | null {
@@ -125,53 +146,94 @@ export class MailService {
     }
   }
 
-  private async sendViaSmtp(message: OutboundEmail): Promise<void> {
-    const transporter = this.getTransporter();
-    const from = this.config.get<string>('smtp.from') ?? 'noreply@markos.dev';
-
-    try {
-      await transporter.sendMail({
-        from,
-        to: message.to,
-        subject: message.subject,
-        text: message.text,
-        html: message.html,
-      });
-    } catch {
-      throw new InternalServerErrorException(
-        'Email service is unreachable. Contact platform support.',
-      );
-    }
-  }
-
-  private getTransporter(): Transporter {
-    if (this.transporter) {
-      return this.transporter;
+  private getSmtpProfiles(): SystemSmtpConfig[] {
+    const profiles = this.config.get<SystemSmtpConfig[]>(
+      'systemMail.smtpProfiles',
+    );
+    if (profiles && profiles.length > 0) {
+      return profiles;
     }
 
     const host = this.config.get<string>('smtp.host');
     const user = this.config.get<string>('smtp.user');
     const pass = this.config.get<string>('smtp.pass');
-
     if (!host || !user || !pass) {
+      return [];
+    }
+
+    return [
+      {
+        host,
+        port: this.config.get<number>('smtp.port') ?? 587,
+        user,
+        pass,
+        from: this.config.get<string>('smtp.from') ?? 'noreply@markos.dev',
+        secure: this.config.get<boolean>('smtp.secure') ?? false,
+      },
+    ];
+  }
+
+  private async sendViaSmtp(message: OutboundEmail): Promise<void> {
+    const profiles = this.getSmtpProfiles();
+    if (profiles.length === 0) {
       throw new InternalServerErrorException(
         'Email service is not configured. Contact platform support.',
       );
     }
 
-    const port = this.config.get<number>('smtp.port') ?? 587;
-    const secure = this.config.get<boolean>('smtp.secure') ?? false;
+    let lastError: unknown;
+    for (const profile of profiles) {
+      try {
+        const transporter = this.getTransporter(profile);
+        await transporter.sendMail({
+          from: profile.from,
+          to: message.to,
+          subject: message.subject,
+          text: message.text,
+          html: message.html,
+        });
+        return;
+      } catch (error) {
+        lastError = error;
+      }
+    }
 
-    this.transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure,
-      auth: { user, pass },
+    if (lastError instanceof Error) {
+      throw new InternalServerErrorException(
+        'Email service is unreachable. Contact platform support.',
+      );
+    }
+
+    throw new InternalServerErrorException(
+      'Email service is unreachable. Contact platform support.',
+    );
+  }
+
+  private transporterCacheKey(profile: SystemSmtpConfig): string {
+    return `${profile.host}:${profile.port}:${profile.user}`;
+  }
+
+  private getTransporter(profile: SystemSmtpConfig): Transporter {
+    const key = this.transporterCacheKey(profile);
+    const cached = this.transporters.get(key);
+    if (cached) {
+      return cached;
+    }
+
+    const requireTLS = !profile.secure && profile.port === 587;
+
+    const transporter = nodemailer.createTransport({
+      host: profile.host,
+      port: profile.port,
+      secure: profile.secure,
+      requireTLS,
+      auth: { user: profile.user, pass: profile.pass },
       connectionTimeout: 10_000,
       greetingTimeout: 10_000,
       socketTimeout: 15_000,
     });
 
-    return this.transporter;
+    this.transporters.set(key, transporter);
+    return transporter;
   }
 }
