@@ -2,7 +2,16 @@ import { InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as nodemailer from 'nodemailer';
+import { isHostedRuntime } from '../common/hosted-runtime.util';
 import { MailService } from './mail.service';
+
+jest.mock('../common/hosted-runtime.util', () => ({
+  isHostedRuntime: jest.fn(() => false),
+}));
+
+const isHostedRuntimeMock = isHostedRuntime as jest.MockedFunction<
+  typeof isHostedRuntime
+>;
 
 const resendSend = jest.fn();
 
@@ -25,6 +34,7 @@ describe('MailService', () => {
   let config: { get: jest.Mock };
 
   beforeEach(async () => {
+    isHostedRuntimeMock.mockReturnValue(false);
     resendSend.mockReset();
     smtpSendMail.mockReset();
     (nodemailer.createTransport as jest.Mock).mockClear();
@@ -199,5 +209,87 @@ describe('MailService', () => {
     await service.sendOtpEmail('user@example.com', '111111');
 
     expect(smtpSendMail).toHaveBeenCalledTimes(2);
+  });
+
+  it('on hosted runtime uses Gmail API instead of SMTP when OAuth refresh is configured', async () => {
+    isHostedRuntimeMock.mockReturnValue(true);
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true });
+    global.fetch = fetchMock as typeof fetch;
+
+    config.get.mockImplementation((key: string) => {
+      if (key === 'systemMail.useSmtp') {
+        return true;
+      }
+      if (key === 'systemMail.preferSmtpOverResend') {
+        return true;
+      }
+      if (key === 'systemMail.smtpProfiles') {
+        return [
+          {
+            host: 'smtp.gmail.com',
+            port: 587,
+            user: 'me@gmail.com',
+            pass: 'abcdefghijklmnop',
+            from: 'me@gmail.com',
+            secure: false,
+          },
+        ];
+      }
+      if (key === 'systemMail.gmailOAuthRefreshToken') {
+        return 'refresh-token';
+      }
+      if (key === 'oauth.google.clientId') {
+        return 'client-id';
+      }
+      if (key === 'oauth.google.clientSecret') {
+        return 'client-secret';
+      }
+      return undefined;
+    });
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ access_token: 'access-token' }),
+      })
+      .mockResolvedValueOnce({ ok: true });
+
+    await service.sendOtpEmail('user@example.com', '123456');
+
+    expect(smtpSendMail).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
+      expect.any(Object),
+    );
+  });
+
+  it('on hosted runtime fails fast when only Gmail app password SMTP is configured', async () => {
+    isHostedRuntimeMock.mockReturnValue(true);
+    config.get.mockImplementation((key: string) => {
+      if (key === 'systemMail.useSmtp') {
+        return true;
+      }
+      if (key === 'systemMail.preferSmtpOverResend') {
+        return true;
+      }
+      if (key === 'systemMail.smtpProfiles') {
+        return [
+          {
+            host: 'smtp.gmail.com',
+            port: 587,
+            user: 'me@gmail.com',
+            pass: 'abcdefghijklmnop',
+            from: 'me@gmail.com',
+            secure: false,
+          },
+        ];
+      }
+      return undefined;
+    });
+
+    await expect(
+      service.sendOtpEmail('user@example.com', '123456'),
+    ).rejects.toThrow(/Gmail app-password SMTP is blocked/);
+    expect(smtpSendMail).not.toHaveBeenCalled();
   });
 });

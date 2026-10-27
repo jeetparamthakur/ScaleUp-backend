@@ -1,11 +1,8 @@
+import { isHostedRuntime } from '../common/hosted-runtime.util';
 import { resolveEffectiveTrackingBaseUrl } from '../email-campaigns/tracking-config.util';
 import { resolveSystemMailConfig } from '../mail/system-mail-config.util';
 
 const LOCAL_DATABASE_URL = 'postgresql://markos:markos@localhost:5435/markos';
-
-function isHostedRuntime(): boolean {
-  return process.env.NODE_ENV === 'production' || process.env.RENDER === 'true';
-}
 
 export default () => {
   const systemMail = resolveSystemMailConfig({
@@ -41,6 +38,7 @@ export default () => {
       useSmtp: systemMail.useSmtp,
       preferSmtpOverResend: systemMail.preferSmtpOverResend,
       smtpProfiles: systemMail.smtpProfiles,
+      gmailOAuthRefreshToken: process.env.GMAIL_OAUTH_REFRESH_TOKEN ?? '',
     },
     resend: {
       apiKey: process.env.RESEND_API_KEY ?? '',

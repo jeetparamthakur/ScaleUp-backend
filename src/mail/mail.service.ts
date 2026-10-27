@@ -3,6 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { Resend } from 'resend';
+import { isHostedRuntime } from '../common/hosted-runtime.util';
+import {
+  buildGmailRawMessage,
+  refreshGoogleAccessToken,
+  sendGmailApiMessage,
+} from './gmail-system-mail.send';
 import type { SystemSmtpConfig } from './system-mail-config.util';
 
 export interface InviteEmailPayload {
@@ -72,6 +78,23 @@ export class MailService {
   }
 
   private async sendEmail(message: OutboundEmail): Promise<void> {
+    if (this.shouldSendViaGmailApi()) {
+      await this.sendViaGmailApi(message);
+      return;
+    }
+
+    if (this.isHostedGmailAppPasswordOnly()) {
+      const resend = this.getResend();
+      if (resend) {
+        await this.sendViaResend(resend, message);
+        return;
+      }
+
+      throw new InternalServerErrorException(
+        'Gmail app-password SMTP is blocked on cloud hosts (e.g. Render). Add GMAIL_OAUTH_REFRESH_TOKEN with GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET, or set RESEND_API_KEY.',
+      );
+    }
+
     if (this.shouldSendViaSmtpFirst()) {
       await this.sendViaSmtp(message);
       return;
@@ -84,6 +107,89 @@ export class MailService {
     }
 
     await this.sendViaSmtp(message);
+  }
+
+  private shouldSendViaGmailApi(): boolean {
+    if (!isHostedRuntime()) {
+      return false;
+    }
+
+    return this.canSendViaGmailApi();
+  }
+
+  private isHostedGmailAppPasswordOnly(): boolean {
+    if (!isHostedRuntime()) {
+      return false;
+    }
+
+    const useSmtp = this.config.get<boolean>('systemMail.useSmtp') ?? false;
+    if (!useSmtp) {
+      return false;
+    }
+
+    return !this.canSendViaGmailApi();
+  }
+
+  private canSendViaGmailApi(): boolean {
+    const refreshToken = this.config
+      .get<string>('systemMail.gmailOAuthRefreshToken')
+      ?.trim();
+    const clientId = this.config.get<string>('oauth.google.clientId')?.trim();
+    const clientSecret = this.config
+      .get<string>('oauth.google.clientSecret')
+      ?.trim();
+    const from = this.resolveGmailFromAddress();
+
+    return Boolean(refreshToken && clientId && clientSecret && from);
+  }
+
+  private resolveGmailFromAddress(): string | null {
+    const profiles = this.getSmtpProfiles();
+    const gmailProfile = profiles.find(
+      (profile) => profile.host === 'smtp.gmail.com' && profile.from,
+    );
+    return gmailProfile?.from?.trim() ?? null;
+  }
+
+  private async sendViaGmailApi(message: OutboundEmail): Promise<void> {
+    const from = this.resolveGmailFromAddress();
+    const refreshToken = this.config
+      .get<string>('systemMail.gmailOAuthRefreshToken')
+      ?.trim();
+    const clientId = this.config.get<string>('oauth.google.clientId')?.trim();
+    const clientSecret = this.config
+      .get<string>('oauth.google.clientSecret')
+      ?.trim();
+
+    if (!from || !refreshToken || !clientId || !clientSecret) {
+      throw new InternalServerErrorException(
+        'Gmail API mail is not fully configured. Contact platform support.',
+      );
+    }
+
+    try {
+      const accessToken = await refreshGoogleAccessToken({
+        clientId,
+        clientSecret,
+        refreshToken,
+      });
+      const rawMessage = buildGmailRawMessage({
+        from,
+        to: message.to,
+        subject: message.subject,
+        text: message.text,
+        html: message.html,
+      });
+      await sendGmailApiMessage({ accessToken, rawMessage });
+    } catch (error) {
+      if (error instanceof InternalServerErrorException) {
+        throw error;
+      }
+
+      throw new InternalServerErrorException(
+        'Failed to send email via Gmail API. Contact platform support.',
+      );
+    }
   }
 
   private shouldSendViaSmtpFirst(): boolean {
